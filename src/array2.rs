@@ -23,7 +23,7 @@ pub struct Array2<T> {
     num_cols: usize,
 }
 
-impl<T: Clone> Array2<T> {
+impl<T> Array2<T> {
     /// Creates an [`Array2`] of the given dimensions with all elements set to the given value.
     ///
     /// # Examples
@@ -35,52 +35,67 @@ impl<T: Clone> Array2<T> {
     /// assert_eq!(a2.row(1), Some(&[false, false, false, false][..]));
     /// assert_eq!(a2.row(2), None);
     /// ```
-    pub fn new(num_cols: usize, num_rows: usize, init_value: T) -> Self {
+    pub fn new(num_cols: usize, num_rows: usize, init_value: T) -> Self
+    where
+        T: Clone,
+    {
         Array2 {
             data: vec![init_value; num_cols * num_rows].into_boxed_slice(),
             num_cols,
         }
     }
 
-    /// Creates an [`Array2`] from the given rows. All rows must have identical lengths.
+    /// Creates an [`Array2`] from the given row iterators.
+    /// All row iterators must produce the same number of elements.
     ///
     /// # Examples
     ///
     /// ```
     /// # use contiguous_collections::Array2;
-    /// let a2 = Array2::new_from_rows(&[&[1, 2, 3, 4], &[5, 6, 7, 8]]);
+    /// let a2: Array2<u32> = Array2::new_from_rows([[1, 2, 3, 4], [5, 6, 7, 8]]);
     /// assert_eq!(a2.row(0), Some(&[1, 2, 3, 4][..]));
     /// assert_eq!(a2.row(1), Some(&[5, 6, 7, 8][..]));
     /// assert_eq!(a2.row(2), None);
+    /// // Rows can be represented by any type that implements IntoIterator
+    /// assert_eq!(a2, Array2::new_from_rows([vec![1, 2, 3, 4], vec![5, 6, 7, 8]]));
+    /// assert_eq!(a2, Array2::new_from_rows([1..5, 5..9]));
     /// ```
     ///
     /// # Panics
     ///
     /// ```should_panic
     /// # use contiguous_collections::Array2;
-    /// let a2 = Array2::new_from_rows(&[&[1, 2][..], &[1, 2, 3][..]]);
+    /// let a2 = Array2::new_from_rows([vec![1, 2], vec![1, 2, 3]]);
     /// ```
-    pub fn new_from_rows(rows: &[&[T]]) -> Self {
-        let num_cols = rows.first().map_or(0, |r| r.len());
-        assert!(
-            rows.iter().all(|r| r.len() == num_cols),
-            "Rows must have identical lengths"
-        );
-        Array2 {
-            data: rows.iter().flat_map(|r| r.iter().cloned()).collect(),
-            num_cols,
-        }
+    pub fn new_from_rows(
+        rows: impl IntoIterator<
+            Item = impl IntoIterator<Item = T, IntoIter = impl Iterator<Item = T> + ExactSizeIterator>,
+        >,
+    ) -> Self {
+        let mut num_cols = None;
+        let data = rows
+            .into_iter()
+            .flat_map(|row| {
+                let row = row.into_iter();
+                if let Some(nc) = num_cols {
+                    assert!(nc == row.len(), "Rows must have identical lengths");
+                } else {
+                    num_cols = Some(row.len());
+                }
+                row
+            })
+            .collect();
+        let num_cols = num_cols.unwrap_or(0);
+        Array2 { data, num_cols }
     }
-}
 
-impl<T> Array2<T> {
     /// Returns the number of columns (elements per row).
     ///
     /// # Examples
     ///
     /// ```
     /// # use contiguous_collections::Array2;
-    /// let a2 = Array2::new_from_rows(&[&[1, 2, 3, 4], &[5, 6, 7, 8]]);
+    /// let a2 = Array2::new_from_rows([[1, 2, 3, 4], [5, 6, 7, 8]]);
     /// assert_eq!(a2.num_cols(), 4);
     /// ```
     pub const fn num_cols(&self) -> usize {
@@ -93,7 +108,7 @@ impl<T> Array2<T> {
     ///
     /// ```
     /// # use contiguous_collections::Array2;
-    /// let a2 = Array2::new_from_rows(&[&[1, 2, 3, 4], &[5, 6, 7, 8]]);
+    /// let a2 = Array2::new_from_rows([[1, 2, 3, 4], [5, 6, 7, 8]]);
     /// assert_eq!(a2.num_rows(), 2);
     /// ```
     pub const fn num_rows(&self) -> usize {
@@ -106,7 +121,7 @@ impl<T> Array2<T> {
     ///
     /// ```
     /// # use contiguous_collections::Array2;
-    /// let a2 = Array2::new_from_rows(&[&[1, 2, 3, 4], &[5, 6, 7, 8]]);
+    /// let a2 = Array2::new_from_rows([[1, 2, 3, 4], [5, 6, 7, 8]]);
     /// assert_eq!(a2.num_elements(), 8);
     /// ```
     pub const fn num_elements(&self) -> usize {
@@ -154,7 +169,7 @@ impl<T> Array2<T> {
     ///
     /// ```
     /// # use contiguous_collections::Array2;
-    /// let a2 = Array2::new_from_rows(&[&[1, 2, 3, 4], &[5, 6, 7, 8]]);
+    /// let a2 = Array2::new_from_rows([[1, 2, 3, 4], [5, 6, 7, 8]]);
     /// let mut rows_iter = a2.rows();
     /// let row0 = rows_iter.next().unwrap();
     /// assert_eq!(row0, &[1, 2, 3, 4][..]);
