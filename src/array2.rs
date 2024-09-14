@@ -4,6 +4,18 @@ use std::{
 };
 
 /// Fixed-size two-dimensional array stored as a flat boxed slice in row-major order.
+///
+/// Comparison with existing libraries:
+/// * The closest in terms of design is [`Array2D`](https://docs.rs/array2d/0.3.2/array2d/struct.Array2D.html).
+///   Both strive to provide minimal and simple APIs for a fixed-size 2D array. [`Array2`] differs mainly
+///   by exposing the underlying data layout in its API, accepting the asymmetry of available methods and their types.
+///   For instance, [`Array2`] has different return types for [`row`](struct.Array2.html#method.row),
+///   which can return a slice, and [`col`](struct.Array2.html#method.col), which cannot.
+/// * A more feature-rich solution is [`ImgVec`](https://docs.rs/imgref/1.10.1/imgref/type.ImgVec.html).
+///   Its API, both in naming and functionality, is focused on image processing, whereas [`Array2`] aims to be more general.
+/// * A yet more feature-rich solution is [`TooDee`](https://docs.rs/toodee/0.5.0/toodee/struct.TooDee.html).
+///   It offers growable 2D arrays, whereas [`Array2`] does not change its size once constructed.
+///
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Array2<T> {
