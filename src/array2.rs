@@ -8,7 +8,7 @@ use std::{
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Array2<T> {
     data: Box<[T]>,
-    num_columns: usize,
+    num_cols: usize,
 }
 
 impl<T: Clone> Array2<T> {
@@ -23,10 +23,10 @@ impl<T: Clone> Array2<T> {
     /// assert_eq!(a2.row(1), Some(&[false, false, false, false][..]));
     /// assert_eq!(a2.row(2), None);
     /// ```
-    pub fn new(num_columns: usize, num_rows: usize, init_value: T) -> Self {
+    pub fn new(num_cols: usize, num_rows: usize, init_value: T) -> Self {
         Array2 {
-            data: vec![init_value; num_columns * num_rows].into_boxed_slice(),
-            num_columns,
+            data: vec![init_value; num_cols * num_rows].into_boxed_slice(),
+            num_cols,
         }
     }
 
@@ -49,14 +49,14 @@ impl<T: Clone> Array2<T> {
     /// let a2 = Array2::new_from_rows(&[&[1, 2][..], &[1, 2, 3][..]]);
     /// ```
     pub fn new_from_rows(rows: &[&[T]]) -> Self {
-        let num_columns = rows.first().map_or(0, |r| r.len());
+        let num_cols = rows.first().map_or(0, |r| r.len());
         assert!(
-            rows.iter().all(|r| r.len() == num_columns),
+            rows.iter().all(|r| r.len() == num_cols),
             "Rows must have identical lengths"
         );
         Array2 {
             data: rows.iter().flat_map(|r| r.iter().cloned()).collect(),
-            num_columns,
+            num_cols,
         }
     }
 }
@@ -69,10 +69,10 @@ impl<T> Array2<T> {
     /// ```
     /// # use contiguous_collections::Array2;
     /// let a2 = Array2::new_from_rows(&[&[1, 2, 3, 4], &[5, 6, 7, 8]]);
-    /// assert_eq!(a2.num_columns(), 4);
+    /// assert_eq!(a2.num_cols(), 4);
     /// ```
-    pub const fn num_columns(&self) -> usize {
-        self.num_columns
+    pub const fn num_cols(&self) -> usize {
+        self.num_cols
     }
 
     /// Returns the number of rows.
@@ -85,7 +85,7 @@ impl<T> Array2<T> {
     /// assert_eq!(a2.num_rows(), 2);
     /// ```
     pub const fn num_rows(&self) -> usize {
-        self.data.len() / self.num_columns
+        self.data.len() / self.num_cols
     }
 
     /// Returns the number of elements across all rows.
@@ -114,8 +114,8 @@ impl<T> Array2<T> {
     /// Returns a slice of the underlying buffer with elements of the row
     /// at the given index, or None if the row index is out of bounds.
     pub fn row(&self, row_index: usize) -> Option<&[T]> {
-        let start = row_index * self.num_columns;
-        let end = (row_index + 1) * self.num_columns;
+        let start = row_index * self.num_cols;
+        let end = (row_index + 1) * self.num_cols;
         if end <= self.data.len() {
             Some(&self.data[start..end])
         } else {
@@ -126,8 +126,8 @@ impl<T> Array2<T> {
     /// Returns a mutable slice of the underlying buffer with elements
     /// of the row at the given index, or None if the row index is out of bounds.
     pub fn row_mut(&mut self, row_index: usize) -> Option<&mut [T]> {
-        let start = row_index * self.num_columns;
-        let end = (row_index + 1) * self.num_columns;
+        let start = row_index * self.num_cols;
+        let end = (row_index + 1) * self.num_cols;
         if end <= self.data.len() {
             Some(&mut self.data[start..end])
         } else {
@@ -153,7 +153,7 @@ impl<T> Array2<T> {
     pub fn rows(
         &self,
     ) -> impl ExactSizeIterator<Item = &[T]> + DoubleEndedIterator + FusedIterator {
-        self.data.chunks(self.num_columns)
+        self.data.chunks(self.num_cols)
     }
 }
 
