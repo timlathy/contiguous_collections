@@ -37,14 +37,16 @@ use std::marker::PhantomData;
 /// ```
 pub struct OrdVec<T, K: OrdVecKey<T>>(Vec<T>, PhantomData<K>);
 
-/// Defines a key extraction function for type `T`.
-/// If the key is not stored as part of the data, use a tuple of (key, data) as `T` and [`OrdVecKeyFst`] as `K`.
+/// Trait for [`OrdVec`] key extraction functions.
+/// If the key is not stored alongside data, use a tuple of (key, data) as `T` and [`OrdVecKeyFst`] as `K`.
 pub trait OrdVecKey<T> {
+    /// The type of keys extracted from values of type `T`. Must implement [`Ord`].
     type Key: Ord + ?Sized;
+    /// Extracts the key from a value of type `T`.
     fn get_key(item: &T) -> &Self::Key;
 }
 
-/// Provides a key extraction function that returns the first element of a two-element tuple.
+/// Key extraction function for [`OrdVec`] that returns the first element of a two-element tuple.
 pub struct OrdVecKeyFst;
 
 impl<K: Ord, D> OrdVecKey<(K, D)> for OrdVecKeyFst {
