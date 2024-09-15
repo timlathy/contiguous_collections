@@ -2,8 +2,16 @@ use std::marker::PhantomData;
 
 /// Ordered [`Vec<T>`] intended for fast lookup of items by key.
 ///
-/// The key is typically stored inside `T` and extracted with the key function `K`.
-/// (Different key functions may be created for the same data type.)
+/// The key is stored inside `T` and extracted with the key function `K`.
+/// Different key functions may be created for the same `T`: see [`OrdVecKey`].
+/// A predefined key function for (K,V) tuples is available as [`OrdVecKeyFst`].
+///
+/// Restrictions:
+/// * Multiple items with the same key are not allowed and will result
+/// in a panic on construction.
+/// * The items must not be modified in a way that changes their key
+/// ordering relative to other items. To modify the keys safely, use
+/// [`retain_map`](struct.OrdVec.html#method.retain_map).
 ///
 /// # Examples
 ///
@@ -76,21 +84,51 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
     /// let ov: OrdVec<_, OrdVecKeyFst> = OrdVec::new_from_unsorted(v);
     /// assert_eq!([(0, "A"), (1, "B"), (2, "C"), (3, "D")], ov[..]);
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// ```should_panic
+    /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
+    /// let duplicate_keys = vec![(0, "A"), (0, "B")];
+    /// let v: OrdVec<_, OrdVecKeyFst> = OrdVec::new_from_unsorted(duplicate_keys);
+    /// ```
     pub fn new_from_unsorted(mut vec: Vec<T>) -> Self {
         vec.sort_unstable_by(|a, b| K::get_key(a).cmp(K::get_key(b)));
         assert!(
             vec.windows(2)
                 .all(|pair| K::get_key(&pair[0]) != K::get_key(&pair[1])),
-            "OrdVec must not contain duplicate keys"
+            "Duplicate keys are not allowed"
         );
         OrdVec(vec, PhantomData)
     }
 
-    /// Returns the number of elements in [`OrdVec`].
+    /// Returns the number of items in [`OrdVec`].
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    /// Inserts a new item into [`OrdVec`].
+    /// Panics if there is an existing item with the same key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
+    /// let mut ov: OrdVec<(u32, &str), OrdVecKeyFst> = OrdVec::new();
+    /// ov.insert((5, "B"));
+    /// ov.insert((3, "A"));
+    /// ov.insert((7, "C"));
+    /// assert_eq!([(3, "A"), (5, "B"), (7, "C")], ov[..]);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// ```should_panic
+    /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
+    /// let mut ov: OrdVec<(u32, &str), OrdVecKeyFst> = OrdVec::new();
+    /// ov.insert((5, "B"));
+    /// ov.insert((5, "A"));
+    /// ```
     pub fn insert(&mut self, item: T) {
         let insert_idx = if let Some(last_item) = self.0.last() {
             let k = K::get_key(&item);
@@ -108,24 +146,65 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
         self.0.insert(insert_idx, item);
     }
 
+    /// Looks up an item by key.
+    /// See also [`get_mut_by_key`](struct.OrdVec.html#method.get_mut_by_key).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
+    /// let ov: OrdVec<_, OrdVecKeyFst> = vec![(1, "B"), (0, "A")].into();
+    /// assert_eq!(Some(&(0, "A")), ov.get_by_key(&0));
+    /// assert_eq!(None, ov.get_by_key(&2));
+    /// ```
     pub fn get_by_key(&self, k: &<K as OrdVecKey<T>>::Key) -> Option<&T> {
-        self.0
-            .binary_search_by_key(&k, K::get_key)
-            .ok()
-            .map(|i| &self.0[i])
+        self.get_index_by_key(k).map(|i| &self.0[i])
     }
 
+    /// Returns a mutable reference to an item looked up by key.
+    ///
+    /// Warning: the behavior of the collection is undefined if the item's key
+    /// is changed in a way that affects its ordering relative to other items.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
+    /// let ov: OrdVec<_, OrdVecKeyFst> = vec![(1, "B"), (0, "A")].into();
+    /// assert_eq!(Some(&(0, "A")), ov.get_by_key(&0));
+    /// assert_eq!(None, ov.get_by_key(&2));
+    /// ```
     pub fn get_mut_by_key(&mut self, k: &<K as OrdVecKey<T>>::Key) -> Option<&mut T> {
-        self.0
-            .binary_search_by_key(&k, K::get_key)
-            .ok()
-            .map(|i| &mut self.0[i])
+        self.get_index_by_key(k).map(|i| &mut self.0[i])
     }
 
-    // pub fn get_index_by_key(&self, k: &<K as OrdVecKey<T>>::Key) -> Option<usize> {
-    //     self.0.binary_search_by_key(k, K::get_key).ok()
-    // }
+    /// Returns the index of the item with the given key
+    /// in the underlying ordered array.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
+    /// let ov: OrdVec<_, OrdVecKeyFst> = vec![(20, "B"), (10, "A")].into();
+    /// assert_eq!(None, ov.get_index_by_key(&0));
+    /// assert_eq!(Some(0), ov.get_index_by_key(&10));
+    /// assert_eq!(Some((10, "A")), ov.get_index_by_key(&10).map(|i| ov[i]));
+    /// ```
+    pub fn get_index_by_key(&self, k: &<K as OrdVecKey<T>>::Key) -> Option<usize> {
+        self.0.binary_search_by_key(&k, K::get_key).ok()
+    }
 
+    /// Removes an item with the given key from [`OrdVec`] and returns it,
+    /// or None if such an item is not found.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
+    /// let mut ov: OrdVec<_, OrdVecKeyFst> = vec![(20, "B"), (10, "A")].into();
+    /// assert_eq!(Some((10, "A")), ov.remove_by_key(&10));
+    /// assert_eq!(None, ov.remove_by_key(&10));
+    /// ```
     pub fn remove_by_key(&mut self, k: &<K as OrdVecKey<T>>::Key) -> Option<T> {
         self.0
             .binary_search_by_key(&k, K::get_key)
@@ -133,9 +212,12 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
             .map(|i| self.0.remove(i))
     }
 
-    /// Apply the function to each element of the [`OrdVec`] and depending on the return value:
-    /// * Replace the element with the new value if the function returns Some(T),
-    /// * Remove the element if the function returns None.
+    /// Apply the function to each [`OrdVec`] item and depending on the return value:
+    /// * Replace the item with the new value if the function returns Some(T),
+    /// * Remove the item if the function returns None.
+    ///
+    /// If the new value has a different key from the old item, its position in
+    /// the [`OrdVec`] will change accordingly.
     ///
     /// The order of iteration may not follow the order of keys. Compare to
     /// [`Vec::retain_mut`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.retain_mut).
