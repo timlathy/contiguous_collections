@@ -140,6 +140,16 @@ impl<T> Array2<T> {
 
     /// Returns a slice of the underlying buffer with elements of the row
     /// at the given index, or None if the row index is out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::Array2;
+    /// let a2: Array2<u32> = Array2::new_from_rows([[1, 2, 3, 4], [5, 6, 7, 8]]);
+    /// assert_eq!(a2.row(0), Some(&[1, 2, 3, 4][..]));
+    /// assert_eq!(a2.row(1), Some(&[5, 6, 7, 8][..]));
+    /// assert!(a2.row(2).is_none());
+    /// ```
     pub fn row(&self, row_index: usize) -> Option<&[T]> {
         let start = row_index * self.num_cols;
         let end = (row_index + 1) * self.num_cols;
@@ -181,6 +191,68 @@ impl<T> Array2<T> {
         &self,
     ) -> impl ExactSizeIterator<Item = &[T]> + DoubleEndedIterator + FusedIterator {
         self.data.chunks(self.num_cols)
+    }
+
+    /// Returns an iterator over elements of the column at the given index,
+    /// or None if the column index is out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::Array2;
+    /// let a2: Array2<u32> = Array2::new_from_rows([[1, 2, 3], [5, 6, 7], [8, 9, 10]]);
+    /// assert_eq!(a2.col(0).map(|c| c.copied().collect()), Some(vec![1, 5, 8]));
+    /// assert_eq!(a2.col(1).map(|c| c.copied().collect()), Some(vec![2, 6, 9]));
+    /// assert_eq!(a2.col(2).map(|c| c.copied().collect()), Some(vec![3, 7, 10]));
+    /// assert!(a2.col(3).is_none());
+    /// ```
+    pub fn col(
+        &self,
+        col_index: usize,
+    ) -> Option<impl ExactSizeIterator<Item = &T> + DoubleEndedIterator> {
+        if col_index < self.num_cols {
+            Some(self.data.iter().skip(col_index).step_by(self.num_cols))
+        } else {
+            None
+        }
+    }
+
+    /// Returns an iterator over mutable references to elements of the column
+    /// at the given index, or None if the column index is out of bounds.
+    pub fn col_mut(
+        &mut self,
+        col_index: usize,
+    ) -> Option<impl ExactSizeIterator<Item = &mut T> + DoubleEndedIterator> {
+        if col_index < self.num_cols {
+            Some(self.data.iter_mut().skip(col_index).step_by(self.num_cols))
+        } else {
+            None
+        }
+    }
+
+    /// Returns an iterator over columns.
+    /// Each item is an iterator over elements of the corresponding columnn.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::Array2;
+    /// let a2: Array2<u32> = Array2::new_from_rows([[1, 2, 3], [5, 6, 7], [8, 9, 10]]);
+    /// let mut cols_iter = a2.cols();
+    /// assert_eq!(cols_iter.next().unwrap().copied().collect::<Vec<u32>>(), vec![1, 5, 8]);
+    /// assert_eq!(cols_iter.next().unwrap().copied().collect::<Vec<u32>>(), vec![2, 6, 9]);
+    /// assert_eq!(cols_iter.next().unwrap().copied().collect::<Vec<u32>>(), vec![3, 7, 10]);
+    /// assert!(cols_iter.next().is_none());
+    /// ```
+    pub fn cols(
+        &self,
+    ) -> impl ExactSizeIterator<Item = impl ExactSizeIterator<Item = &T> + DoubleEndedIterator>
+           + DoubleEndedIterator
+           + FusedIterator {
+        (0..self.num_cols).map(|i| {
+            self.col(i)
+                .expect("cols() must not use out of bounds column indexes")
+        })
     }
 }
 
