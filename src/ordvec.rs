@@ -316,6 +316,13 @@ impl<T, K: OrdVecKey<T>> FromIterator<T> for OrdVec<T, K> {
     }
 }
 
+/// Creates an empty [`OrdVec`].
+impl<T, K: OrdVecKey<T>> Default for OrdVec<T, K> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Returns a slice of the underlying data, which is guaranteed
 /// to be ordered according to the key extraction function.
 impl<T, K: OrdVecKey<T>> std::ops::Deref for OrdVec<T, K> {

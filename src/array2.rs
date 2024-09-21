@@ -69,7 +69,7 @@ impl<T> Array2<T> {
     /// ```
     pub fn new_from_rows(
         rows: impl IntoIterator<
-            Item = impl IntoIterator<Item = T, IntoIter = impl Iterator<Item = T> + ExactSizeIterator>,
+            Item = impl IntoIterator<Item = T, IntoIter = impl ExactSizeIterator<Item = T>>,
         >,
     ) -> Self {
         let mut num_cols = None;
