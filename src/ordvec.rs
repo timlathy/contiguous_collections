@@ -105,8 +105,31 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
     }
 
     /// Returns the number of items in [`OrdVec`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
+    /// let ov: OrdVec<_, OrdVecKeyFst> = vec![(1, "B"), (0, "A")].into();
+    /// assert_eq!(2, ov.len());
+    /// ```
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    /// Returns `true` if the [`OrdVec`] contains no items.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
+    /// let mut ov: OrdVec<(u32, &str), OrdVecKeyFst> = OrdVec::new();
+    /// assert!(ov.is_empty());
+    /// ov.insert((1, "A"));
+    /// assert!(!ov.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     /// Inserts a new item into [`OrdVec`].
@@ -134,7 +157,7 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
     pub fn insert(&mut self, item: T) {
         let insert_idx = if let Some(last_item) = self.0.last() {
             let k = K::get_key(&item);
-            if k <= K::get_key(&last_item) {
+            if k <= K::get_key(last_item) {
                 match self.0.binary_search_by_key(&k, K::get_key) {
                     Ok(_) => panic!("Cannot insert an item with a duplicate key"),
                     Err(i) => i,
