@@ -31,9 +31,9 @@ use std::marker::PhantomData;
 ///     User { uid: 2, name: "Ariel".into(), zip: "11000".into() },
 /// ];
 /// let by_uid = users.iter().cloned().collect::<OrdVec<User, UidKey>>();
-/// assert_eq!(Some(&users[0]), by_uid.get_by_key(&1));
+/// assert_eq!(by_uid.get_by_key(&1), Some(&users[0]));
 /// let by_zip = users.iter().cloned().collect::<OrdVec<User, ZipKey>>();
-/// assert_eq!(Some(&users[0]), by_zip.get_by_key("10030"));
+/// assert_eq!(by_zip.get_by_key("10030"), Some(&users[0]));
 /// ```
 pub struct OrdVec<T, K: OrdVecKey<T>>(Vec<T>, PhantomData<K>);
 
@@ -64,8 +64,8 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
     ///
     /// ```
     /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
-    /// let v: OrdVec<(u32, String), OrdVecKeyFst> = OrdVec::new();
-    /// assert_eq!(0, v.len());
+    /// let ov: OrdVec<(u32, String), OrdVecKeyFst> = OrdVec::new();
+    /// assert_eq!(ov.len(), 0);
     /// ```
     pub const fn new() -> Self {
         OrdVec(Vec::new(), PhantomData)
@@ -84,7 +84,7 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
     /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
     /// let v = vec![(1, "B"), (0, "A"), (3, "D"), (2, "C")];
     /// let ov: OrdVec<_, OrdVecKeyFst> = OrdVec::new_from_unsorted(v);
-    /// assert_eq!([(0, "A"), (1, "B"), (2, "C"), (3, "D")], ov[..]);
+    /// assert_eq!(ov[..], [(0, "A"), (1, "B"), (2, "C"), (3, "D")]);
     /// ```
     ///
     /// # Panics
@@ -111,7 +111,7 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
     /// ```
     /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
     /// let ov: OrdVec<_, OrdVecKeyFst> = vec![(1, "B"), (0, "A")].into();
-    /// assert_eq!(2, ov.len());
+    /// assert_eq!(ov.len(), 2);
     /// ```
     pub fn len(&self) -> usize {
         self.0.len()
@@ -143,7 +143,7 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
     /// ov.insert((5, "B"));
     /// ov.insert((3, "A"));
     /// ov.insert((7, "C"));
-    /// assert_eq!([(3, "A"), (5, "B"), (7, "C")], ov[..]);
+    /// assert_eq!(ov[..], [(3, "A"), (5, "B"), (7, "C")]);
     /// ```
     ///
     /// # Panics
@@ -179,8 +179,8 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
     /// ```
     /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
     /// let ov: OrdVec<_, OrdVecKeyFst> = vec![(1, "B"), (0, "A")].into();
-    /// assert_eq!(Some(&(0, "A")), ov.get_by_key(&0));
-    /// assert_eq!(None, ov.get_by_key(&2));
+    /// assert_eq!(ov.get_by_key(&0), Some(&(0, "A")));
+    /// assert_eq!(ov.get_by_key(&2), None);
     /// ```
     pub fn get_by_key(&self, k: &<K as OrdVecKey<T>>::Key) -> Option<&T> {
         self.get_index_by_key(k).map(|i| &self.0[i])
@@ -195,9 +195,9 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
     ///
     /// ```
     /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
-    /// let ov: OrdVec<_, OrdVecKeyFst> = vec![(1, "B"), (0, "A")].into();
-    /// assert_eq!(Some(&(0, "A")), ov.get_by_key(&0));
-    /// assert_eq!(None, ov.get_by_key(&2));
+    /// let mut ov: OrdVec<_, OrdVecKeyFst> = vec![(1, "B"), (0, "A")].into();
+    /// assert_eq!(ov.get_mut_by_key(&0), Some(&mut (0, "A")));
+    /// assert_eq!(ov.get_mut_by_key(&2), None);
     /// ```
     pub fn get_mut_by_key(&mut self, k: &<K as OrdVecKey<T>>::Key) -> Option<&mut T> {
         self.get_index_by_key(k).map(|i| &mut self.0[i])
@@ -211,9 +211,9 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
     /// ```
     /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
     /// let ov: OrdVec<_, OrdVecKeyFst> = vec![(20, "B"), (10, "A")].into();
-    /// assert_eq!(None, ov.get_index_by_key(&0));
-    /// assert_eq!(Some(0), ov.get_index_by_key(&10));
-    /// assert_eq!(Some((10, "A")), ov.get_index_by_key(&10).map(|i| ov[i]));
+    /// assert_eq!(ov.get_index_by_key(&0), None);
+    /// assert_eq!(ov.get_index_by_key(&10), Some(0));
+    /// assert_eq!(ov.get_index_by_key(&10).map(|i| ov[i]), Some((10, "A")));
     /// ```
     pub fn get_index_by_key(&self, k: &<K as OrdVecKey<T>>::Key) -> Option<usize> {
         self.0.binary_search_by_key(&k, K::get_key).ok()
@@ -227,8 +227,8 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
     /// ```
     /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
     /// let mut ov: OrdVec<_, OrdVecKeyFst> = vec![(20, "B"), (10, "A")].into();
-    /// assert_eq!(Some((10, "A")), ov.remove_by_key(&10));
-    /// assert_eq!(None, ov.remove_by_key(&10));
+    /// assert_eq!(ov.remove_by_key(&10), Some((10, "A")));
+    /// assert_eq!(ov.remove_by_key(&10), None);
     /// ```
     pub fn remove_by_key(&mut self, k: &<K as OrdVecKey<T>>::Key) -> Option<T> {
         self.0
@@ -292,7 +292,7 @@ impl<T, K: OrdVecKey<T>> OrdVec<T, K> {
 /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
 /// let v = vec![(1, "B"), (0, "A"), (3, "D"), (2, "C")];
 /// let ov: OrdVec<_, OrdVecKeyFst> = v.into();
-/// assert_eq!([(0, "A"), (1, "B"), (2, "C"), (3, "D")], ov[..]);
+/// assert_eq!(ov[..], [(0, "A"), (1, "B"), (2, "C"), (3, "D")]);
 /// ```
 impl<T, K: OrdVecKey<T>> From<Vec<T>> for OrdVec<T, K> {
     fn from(value: Vec<T>) -> Self {
@@ -308,7 +308,7 @@ impl<T, K: OrdVecKey<T>> From<Vec<T>> for OrdVec<T, K> {
 /// # use contiguous_collections::{OrdVec, OrdVecKey, OrdVecKeyFst};
 /// let iter = [(1, "B"), (0, "A"), (3, "D"), (2, "C")].into_iter();
 /// let ov = iter.collect::<OrdVec<_, OrdVecKeyFst>>();
-/// assert_eq!([(0, "A"), (1, "B"), (2, "C"), (3, "D")], ov[..]);
+/// assert_eq!(ov[..], [(0, "A"), (1, "B"), (2, "C"), (3, "D")]);
 /// ```
 impl<T, K: OrdVecKey<T>> FromIterator<T> for OrdVec<T, K> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
