@@ -1,6 +1,6 @@
 [package]
 name = "contiguous_collections"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "A library of collections backed by flat contiguous arrays"
 repository = "https://github.com/timlathy/contiguous_collections"

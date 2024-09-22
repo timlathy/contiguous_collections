@@ -1,6 +1,7 @@
 use std::{
     iter::FusedIterator,
-    ops::{Index, IndexMut},
+    ops::{Index, IndexMut, RangeBounds},
+    slice::SliceIndex,
 };
 
 /// Fixed-size two-dimensional array stored as a flat boxed slice in row-major order.
@@ -253,6 +254,50 @@ impl<T> Array2<T> {
             self.col(i)
                 .expect("cols() must not use out of bounds column indexes")
         })
+    }
+
+    /// Returns a new [`Array2`] created from a slice of rows and columns of this array.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::Array2;
+    /// let a2: Array2<u32> = Array2::new_from_rows([[1, 2, 3], [5, 6, 7], [8, 9, 10]]);
+    /// assert_eq!(a2.subarray(.., ..), a2);
+    /// assert_eq!(a2.subarray(.., ..1).rows().collect::<Vec<_>>(), vec![&[1], &[5], &[8]]);
+    /// assert_eq!(a2.subarray(1.., 1..=2).rows().collect::<Vec<_>>(), vec![&[6, 7], &[9, 10]]);
+    /// ```
+    pub fn subarray(
+        &self,
+        row_indexes: impl RangeBounds<usize>,
+        col_indexes: impl SliceIndex<[T], Output = [T]> + Clone,
+    ) -> Array2<T>
+    where
+        T: Clone,
+    {
+        let subarray_rows = self
+            .rows()
+            .enumerate()
+            .filter(|(i, _)| row_indexes.contains(i))
+            .map(|(_, r)| r.index(col_indexes.clone()).to_owned());
+        Array2::new_from_rows(subarray_rows)
+    }
+
+    /// Returns a new [`Array2`] of the same dimensions as this array,
+    /// with function `f` applied to each element in row-major order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use contiguous_collections::Array2;
+    /// let a2_u32: Array2<u32> = Array2::new_from_rows([[1, 2], [3, 4], [5, 6]]);
+    /// let a2_x10f32 = a2_u32.map(|&elt| elt as f32 * 10.0);
+    /// assert_eq!(a2_x10f32.rows().collect::<Vec<_>>(), vec![&[10.0, 20.0], &[30.0, 40.0], &[50.0, 60.0]]);
+    /// ```
+    pub fn map<U>(&self, f: impl FnMut(&T) -> U) -> Array2<U> {
+        let data = self.data.iter().map(f).collect();
+        let num_cols = self.num_cols;
+        Array2 { data, num_cols }
     }
 }
 
